@@ -52,12 +52,12 @@ A **private, login-protected web dashboard** for a freelance video editor (clien
 
 ### User Management
 Users are **hardcoded** in `src/lib/users.ts`. There is no sign-up flow. To add a new user:
-1. Generate a bcrypt hash (12 rounds): `node -e "require('bcryptjs').hash('Password', 12, (e,h) => console.log(h))"`
+1. Generate a bcrypt hash (12 rounds): `node -e "require('bcryptjs').hash('YourChosenPassword', 12, (e,h) => console.log(h))"`
 2. Add an entry to the `USERS` array in `src/lib/users.ts`
 3. Redeploy — the new user gets a completely isolated, empty dashboard
 
 **Current users:**
-- Username: `MediabyZehra` / Display name: `Media by Zehra` / ID: `user_zehra`
+- Username: `MediaByZehra` / Display name: `Media by Zehra` / ID: `user_zehra`
 
 ### Data Isolation
 Every `Video` record has a `userId` field. **All API routes check the session** using `getServerSession(authOptions)` and filter queries by `userId`. A user can never read, write, update, or delete another user's videos — this is enforced at the database query level, not just the UI.
