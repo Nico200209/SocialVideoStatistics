@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { detectPlatform } from '@/lib/utils'
 import type { Platform, VideoWithLatestStat } from '@/types'
 
@@ -46,6 +46,12 @@ export default function AddVideoModal({ isOpen, onClose, onSuccess }: AddVideoMo
   const [submitError, setSubmitError] = useState('')
   const [metaFetched, setMetaFetched] = useState(false)
   const [statsAutoFilled, setStatsAutoFilled] = useState(false)
+  const [allClients, setAllClients] = useState<string[]>([])
+  const [clientSuggestions, setClientSuggestions] = useState<string[]>([])
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(0)
+  const clientInputRef = useRef<HTMLInputElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
   const fetchTriggeredRef = useRef(false)
 
@@ -56,9 +62,56 @@ export default function AddVideoModal({ isOpen, onClose, onSuccess }: AddVideoMo
       setSubmitError('')
       setMetaFetched(false)
       setStatsAutoFilled(false)
+      setClientSuggestions([])
+      setShowDropdown(false)
       fetchTriggeredRef.current = false
+    } else {
+      fetch('/api/clients').then((r) => r.json()).then((data) => {
+        if (Array.isArray(data)) setAllClients(data)
+      }).catch(() => {})
     }
   }, [isOpen])
+
+  const handleClientChange = useCallback((value: string) => {
+    setForm((prev) => ({ ...prev, clientName: value }))
+    if (value.trim()) {
+      const filtered = allClients.filter((c) =>
+        c.toLowerCase().startsWith(value.toLowerCase()) && c.toLowerCase() !== value.toLowerCase()
+      )
+      setClientSuggestions(filtered)
+      setShowDropdown(filtered.length > 0)
+      setActiveIndex(0)
+    } else {
+      setClientSuggestions([])
+      setShowDropdown(false)
+    }
+  }, [allClients])
+
+  const acceptSuggestion = useCallback((value: string) => {
+    setForm((prev) => ({ ...prev, clientName: value }))
+    setClientSuggestions([])
+    setShowDropdown(false)
+    clientInputRef.current?.focus()
+  }, [])
+
+  const handleClientKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showDropdown) return
+    if (e.key === 'Tab' || e.key === 'ArrowRight') {
+      e.preventDefault()
+      acceptSuggestion(clientSuggestions[activeIndex] ?? clientSuggestions[0])
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      acceptSuggestion(clientSuggestions[activeIndex])
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveIndex((i) => Math.min(i + 1, clientSuggestions.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveIndex((i) => Math.max(i - 1, 0))
+    } else if (e.key === 'Escape') {
+      setShowDropdown(false)
+    }
+  }, [showDropdown, clientSuggestions, activeIndex, acceptSuggestion])
 
   // Handle Escape key
   useEffect(() => {
@@ -336,16 +389,81 @@ export default function AddVideoModal({ isOpen, onClose, onSuccess }: AddVideoMo
               <label className="block text-xs font-medium mb-1.5" style={{ color: '#a0a0a0' }}>
                 Client Name <span style={{ color: '#ff0050' }}>*</span>
               </label>
-              <input
-                type="text"
-                placeholder="Client name"
-                required
-                className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-                style={{ background: '#1e1e1e', border: '1px solid #2a2a2a', color: '#f0f0f0' }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = accentColor }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = '#2a2a2a' }}
-                {...field('clientName')}
-              />
+              <div className="relative">
+                {/* Ghost text layer */}
+                {showDropdown && clientSuggestions[activeIndex] && (
+                  <div
+                    aria-hidden="true"
+                    className="absolute inset-0 px-3 py-2.5 rounded-xl text-sm pointer-events-none flex items-center"
+                    style={{ zIndex: 0 }}
+                  >
+                    <span style={{ color: 'transparent' }}>{form.clientName}</span>
+                    <span style={{ color: '#4a4a4a' }}>
+                      {clientSuggestions[activeIndex].slice(form.clientName.length)}
+                    </span>
+                  </div>
+                )}
+                <input
+                  ref={clientInputRef}
+                  type="text"
+                  placeholder="Client name"
+                  required
+                  autoComplete="off"
+                  className="w-full px-3 py-2.5 rounded-xl text-sm outline-none relative"
+                  style={{
+                    background: '#1e1e1e',
+                    border: '1px solid #2a2a2a',
+                    color: '#f0f0f0',
+                    zIndex: 1,
+                    position: 'relative',
+                  }}
+                  value={form.clientName}
+                  onChange={(e) => handleClientChange(e.target.value)}
+                  onKeyDown={handleClientKeyDown}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = accentColor
+                    if (form.clientName.trim() && clientSuggestions.length > 0) setShowDropdown(true)
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = '#2a2a2a'
+                    // Delay so click on dropdown item registers first
+                    setTimeout(() => setShowDropdown(false), 150)
+                  }}
+                />
+                {/* Dropdown */}
+                {showDropdown && (
+                  <div
+                    ref={dropdownRef}
+                    className="absolute left-0 right-0 top-full mt-1 rounded-xl overflow-hidden"
+                    style={{
+                      background: '#1e1e1e',
+                      border: '1px solid #2a2a2a',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                      zIndex: 50,
+                    }}
+                  >
+                    {clientSuggestions.map((client, i) => (
+                      <button
+                        key={client}
+                        type="button"
+                        className="w-full text-left px-3 py-2 text-sm transition-colors"
+                        style={{
+                          color: i === activeIndex ? '#f0f0f0' : '#a0a0a0',
+                          background: i === activeIndex ? '#2a2a2a' : 'transparent',
+                        }}
+                        onMouseEnter={() => setActiveIndex(i)}
+                        onMouseDown={(e) => {
+                          e.preventDefault()
+                          acceptSuggestion(client)
+                        }}
+                      >
+                        <span style={{ color: accentColor }}>{client.slice(0, form.clientName.length)}</span>
+                        {client.slice(form.clientName.length)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <div>
               <label className="block text-xs font-medium mb-1.5" style={{ color: '#a0a0a0' }}>
