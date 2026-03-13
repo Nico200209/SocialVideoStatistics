@@ -20,9 +20,8 @@ export interface AppUser {
 export const USERS: AppUser[] = [
   {
     id: 'user_zehra',
-    username: 'MediabyZehra',
-    // Hash of: Password123!
-    passwordHash: '$2b$12$ix87.fFlgLlldWYc1SVsBeM1jQubVebSG6Fz3DipkfcBWXyHhyI4K',
+    username: 'MediaByZehra',
+    passwordHash: '$2a$12$ZjfvaKIgA9A25TcVXkqP.OeXhIuPl6pYrzLjErbcTOFiLVX8XlyXS',
     displayName: 'Media by Zehra',
   },
 
