@@ -39,13 +39,13 @@ const navItems = [
   },
 ]
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   const pathname = usePathname()
   const { data: session } = useSession()
 
   return (
     <aside
-      className="fixed left-0 top-0 h-full w-60 flex flex-col z-40"
+      className={`fixed left-0 top-0 h-full w-60 flex flex-col z-40 transition-transform duration-300 ease-in-out md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
       style={{ background: '#111111', borderRight: '1px solid #1e1e1e' }}
     >
       {/* Logo */}
@@ -83,6 +83,7 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onClose}
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150"
               style={
                 isActive

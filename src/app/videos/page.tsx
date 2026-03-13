@@ -93,9 +93,9 @@ export default function VideosPage() {
   ]
 
   return (
-    <div className="p-6 space-y-6 min-h-screen">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6 min-h-screen">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center"
