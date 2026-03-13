@@ -12,6 +12,8 @@ interface MetaResult {
     comments: number | null
     shares: number | null
   }
+  pending?: boolean
+  runId?: string
 }
 
 export async function GET(request: NextRequest) {
@@ -44,6 +46,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(await fetchTikTokMeta(url, empty))
     }
     if (platform === 'instagram') {
+      const apifyToken = process.env.APIFY_TOKEN
+      if (apifyToken) {
+        return NextResponse.json(await startApifyInstagramRun(url, empty, apifyToken))
+      }
       return NextResponse.json(await fetchInstagramMeta(url, empty))
     }
     return NextResponse.json(empty)
@@ -115,7 +121,46 @@ async function fetchTikTokMeta(url: string, fallback: MetaResult): Promise<MetaR
   return fallback
 }
 
-// ─── Instagram via page scraping ─────────────────────────────────────────────
+// ─── Instagram via Apify (free tier) ─────────────────────────────────────────
+
+async function startApifyInstagramRun(
+  url: string,
+  fallback: MetaResult,
+  token: string
+): Promise<MetaResult> {
+  // First try to get title/thumbnail quickly via og:description scrape
+  const partial = await fetchInstagramMeta(url, fallback)
+
+  try {
+    const res = await fetch(
+      `https://api.apify.com/v2/acts/apify~instagram-scraper/runs?token=${token}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          directUrls: [url],
+          resultsType: 'posts',
+          resultsLimit: 1,
+        }),
+        signal: AbortSignal.timeout(8000),
+      }
+    )
+
+    if (!res.ok) return partial
+
+    const data = await res.json()
+    const runId = data?.data?.id
+    if (!runId) return partial
+
+    // Return immediately with partial data + runId so client can poll
+    return { ...partial, pending: true, runId }
+  } catch (e) {
+    console.error('Apify start error:', e)
+    return partial
+  }
+}
+
+// ─── Instagram via page scraping (fallback) ───────────────────────────────────
 
 async function fetchInstagramMeta(url: string, fallback: MetaResult): Promise<MetaResult> {
   // Normalize URL (strip query params, trailing slash)

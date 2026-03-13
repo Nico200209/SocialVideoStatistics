@@ -50,13 +50,21 @@ export default function AddVideoModal({ isOpen, onClose, onSuccess }: AddVideoMo
   const [clientSuggestions, setClientSuggestions] = useState<string[]>([])
   const [showDropdown, setShowDropdown] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
+  const [isPolling, setIsPolling] = useState(false)
   const clientInputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
   const fetchTriggeredRef = useRef(false)
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     if (!isOpen) {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+        pollIntervalRef.current = null
+      }
+      setIsPolling(false)
+      setFetchLoading(false)
       setForm(defaultForm)
       setFetchError('')
       setSubmitError('')
@@ -113,6 +121,55 @@ export default function AddVideoModal({ isOpen, onClose, onSuccess }: AddVideoMo
     }
   }, [showDropdown, clientSuggestions, activeIndex, acceptSuggestion])
 
+  const pollInstagramStats = useCallback((runId: string) => {
+    setIsPolling(true)
+    let attempts = 0
+    pollIntervalRef.current = setInterval(async () => {
+      attempts++
+      if (attempts > 20) {
+        clearInterval(pollIntervalRef.current!)
+        pollIntervalRef.current = null
+        setIsPolling(false)
+        setFetchLoading(false)
+        setMetaFetched(true)
+        setStatsAutoFilled(false)
+        return
+      }
+      try {
+        const res = await fetch(`/api/instagram-poll?runId=${runId}`)
+        const data = await res.json()
+        if (data.status === 'SUCCEEDED') {
+          clearInterval(pollIntervalRef.current!)
+          pollIntervalRef.current = null
+          setIsPolling(false)
+          setFetchLoading(false)
+          const autoStats = data.stats ?? {}
+          const hasStats = Object.values(autoStats).some((v) => v !== null && v !== undefined)
+          setForm((prev) => ({
+            ...prev,
+            title: data.title || prev.title,
+            thumbnail: data.thumbnail_url || prev.thumbnail,
+            views: autoStats.views != null ? String(autoStats.views) : prev.views,
+            likes: autoStats.likes != null ? String(autoStats.likes) : prev.likes,
+            comments: autoStats.comments != null ? String(autoStats.comments) : prev.comments,
+            shares: autoStats.shares != null ? String(autoStats.shares) : prev.shares,
+          }))
+          setMetaFetched(true)
+          setStatsAutoFilled(hasStats)
+        } else if (data.status === 'FAILED') {
+          clearInterval(pollIntervalRef.current!)
+          pollIntervalRef.current = null
+          setIsPolling(false)
+          setFetchLoading(false)
+          setMetaFetched(true)
+          setStatsAutoFilled(false)
+        }
+      } catch {
+        // keep polling
+      }
+    }, 3000)
+  }, [])
+
   // Handle Escape key
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -148,11 +205,25 @@ export default function AddVideoModal({ isOpen, onClose, onSuccess }: AddVideoMo
     }
     setFetchLoading(true)
     setFetchError('')
+    let keepLoading = false
     try {
       const res = await fetch(`/api/fetch-meta?url=${encodeURIComponent(form.url)}`)
       const data = await res.json()
       if (!res.ok) {
         setFetchError(data.error ?? 'Failed to fetch metadata')
+        return
+      }
+
+      // Instagram with Apify: server started the run, client must poll
+      if (data.pending && data.runId) {
+        setForm((prev) => ({
+          ...prev,
+          platform,
+          title: data.title || prev.title,
+          thumbnail: data.thumbnail_url || prev.thumbnail,
+        }))
+        keepLoading = true
+        pollInstagramStats(data.runId)
         return
       }
 
@@ -174,7 +245,7 @@ export default function AddVideoModal({ isOpen, onClose, onSuccess }: AddVideoMo
     } catch {
       setFetchError('Network error while fetching metadata')
     } finally {
-      setFetchLoading(false)
+      if (!keepLoading) setFetchLoading(false)
     }
   }
 
@@ -311,7 +382,7 @@ export default function AddVideoModal({ isOpen, onClose, onSuccess }: AddVideoMo
                 {fetchLoading ? (
                   <span className="flex items-center gap-1.5">
                     <SpinnerIcon />
-                    Fetching…
+                    {isPolling ? 'Fetching stats…' : 'Fetching…'}
                   </span>
                 ) : (
                   'Fetch Info'
@@ -323,7 +394,13 @@ export default function AddVideoModal({ isOpen, onClose, onSuccess }: AddVideoMo
                 {fetchError}
               </p>
             )}
-            {metaFetched && !fetchError && (
+            {isPolling && !fetchError && (
+              <p className="text-xs mt-1.5 flex items-center gap-1" style={{ color: '#a0a0a0' }}>
+                <SpinnerIcon />
+                Fetching Instagram stats via Apify… (~15 sec)
+              </p>
+            )}
+            {metaFetched && !fetchError && !isPolling && (
               <p className="text-xs mt-1.5 flex items-center gap-1" style={{ color: '#4ade80' }}>
                 <CheckIcon />
                 {statsAutoFilled
