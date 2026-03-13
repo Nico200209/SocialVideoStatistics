@@ -24,6 +24,12 @@ export const USERS: AppUser[] = [
     passwordHash: '$2a$12$ZjfvaKIgA9A25TcVXkqP.OeXhIuPl6pYrzLjErbcTOFiLVX8XlyXS',
     displayName: 'Media by Zehra',
   },
+    {
+    id: 'user_nico',
+    username: 'Nicolas',
+    passwordHash: '$2a$12$HUL2kN/UYJ7/nMfvfHTXluCJRx31PQwZ044BA167lqU1I6sT6Emke',
+    displayName: 'Nicolas',
+  },
 
   // ── Add new users below this line ─────────────────────────────────────────
   // {
