@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useSession, signOut } from 'next-auth/react'
 
 const navItems = [
   {
@@ -40,6 +41,7 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const { data: session } = useSession()
 
   return (
     <aside
@@ -117,11 +119,42 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Footer */}
-      <div className="px-6 py-4" style={{ borderTop: '1px solid #1e1e1e' }}>
-        <p className="text-xs" style={{ color: '#3a3a3a' }}>
-          © 2025 VideoDash
-        </p>
+      {/* Footer — user info + logout */}
+      <div className="px-4 py-4 space-y-3" style={{ borderTop: '1px solid #1e1e1e' }}>
+        {session?.user && (
+          <div className="flex items-center gap-2.5 px-2">
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold"
+              style={{ background: 'linear-gradient(135deg, #06b6d4, #0891b2)', color: '#fff' }}
+            >
+              {session.user.name?.charAt(0).toUpperCase() ?? '?'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium truncate" style={{ color: '#d0d0d0' }}>
+                {session.user.name}
+              </p>
+              <p className="text-xs truncate" style={{ color: '#4a4a4a' }}>
+                {session.user.email}
+              </p>
+            </div>
+          </div>
+        )}
+        <button
+          onClick={() => signOut({ callbackUrl: '/login' })}
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors"
+          style={{ color: '#5a5a5a', background: 'transparent' }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = '#1e1e1e'
+            e.currentTarget.style.color = '#f87171'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent'
+            e.currentTarget.style.color = '#5a5a5a'
+          }}
+        >
+          <LogoutIcon />
+          Sign out
+        </button>
       </div>
     </aside>
   )
@@ -150,6 +183,16 @@ function InstagramIcon({ size = 18, color = 'currentColor' }: { size?: number; c
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
       <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+    </svg>
+  )
+}
+
+function LogoutIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" y1="12" x2="9" y2="12" />
     </svg>
   )
 }
