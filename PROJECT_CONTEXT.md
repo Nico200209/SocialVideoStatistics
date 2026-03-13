@@ -18,9 +18,10 @@ A **private, login-protected web dashboard** for a freelance video editor (clien
 - Track: **Views, Likes, Comments, Shares/Reposts**
 - Multiple stat snapshots per video over time (growth tracking)
 - Separate dashboards for TikTok and Instagram
-- Overview dashboard with aggregate totals and charts
+- Overview dashboard at `/dashboard` with aggregate totals and charts
 - All Videos page with search + filter by platform and client name
 - Per-user data isolation — each logged-in user only sees their own videos
+- Client name autocomplete in Add Video modal — as the user types, previously used client names are suggested with ghost text and a dropdown
 
 ---
 
@@ -47,8 +48,10 @@ A **private, login-protected web dashboard** for a freelance video editor (clien
 ### How Auth Works
 - NextAuth v4 with a **Credentials provider** (username + password)
 - Sessions use **JWT strategy** (no database session table needed)
+- Root `/` redirects immediately to `/login` (server-side, via `src/app/page.tsx`)
 - `middleware.ts` at the project root protects every route — unauthenticated users are always redirected to `/login`
 - The login page is at `/login` and has NO sidebar (handled by `AppShell` component checking the pathname)
+- After successful login, users are sent to `/dashboard`
 
 ### User Management
 Users are **hardcoded** in `src/lib/users.ts`. There is no sign-up flow. To add a new user:
@@ -64,13 +67,14 @@ Every `Video` record has a `userId` field. **All API routes check the session** 
 
 ### Passwords
 - Passwords are **bcrypt-hashed** (12 rounds) and stored only as hashes in `src/lib/users.ts`
-- Plain-text passwords are never stored anywhere in the codebase
+- Plain-text passwords are **never** stored anywhere in the codebase
+- **Never hint at a password in a comment, doc, or example** — use a generic placeholder like `'YourChosenPassword'` in any code examples
 - `NEXTAUTH_SECRET` is stored only in environment variables, never committed to git
 
 ### What Must Never Be Committed to Git
 - `.env` (contains `NEXTAUTH_SECRET` and database URLs) — already in `.gitignore`
 - `prisma/*.db` files (SQLite, if used locally) — already in `.gitignore`
-- Any file containing plain-text passwords
+- Any file or comment containing plain-text passwords or hints about real passwords
 
 ---
 
@@ -85,7 +89,8 @@ Every `Video` record has a `userId` field. **All API routes check the session** 
 │   ├── app/
 │   │   ├── layout.tsx                     ← Root layout (AuthProvider + AppShell)
 │   │   ├── globals.css
-│   │   ├── page.tsx                       ← Overview dashboard (all platforms)
+│   │   ├── page.tsx                       ← Redirects to /login
+│   │   ├── dashboard/page.tsx             ← Overview dashboard (all platforms)
 │   │   ├── tiktok/page.tsx                ← TikTok-only dashboard
 │   │   ├── instagram/page.tsx             ← Instagram-only dashboard
 │   │   ├── videos/page.tsx                ← All videos list with search/filter
@@ -95,12 +100,13 @@ Every `Video` record has a `userId` field. **All API routes check the session** 
 │   │       ├── videos/route.ts             ← GET list + POST create
 │   │       ├── videos/[id]/route.ts        ← GET + PUT + DELETE single video
 │   │       ├── videos/[id]/stats/route.ts  ← POST new stat snapshot + GET history
-│   │       └── fetch-meta/route.ts         ← Auto-fetch title/thumbnail/stats from URL
+│   │       ├── fetch-meta/route.ts         ← Auto-fetch title/thumbnail/stats from URL
+│   │       └── clients/route.ts            ← GET distinct client names for autocomplete
 │   ├── components/
 │   │   ├── AuthProvider.tsx               ← SessionProvider wrapper (client)
-│   │   ├── AppShell.tsx                   ← Sidebar layout, hides sidebar on /login
+│   │   ├── AppShell.tsx                   ← Sidebar layout, hides sidebar on /login and /
 │   │   ├── Sidebar.tsx                    ← Navigation + user info + logout button
-│   │   ├── AddVideoModal.tsx              ← Modal: paste URL → auto-fetch → save
+│   │   ├── AddVideoModal.tsx              ← Modal: paste URL → auto-fetch → save (client name has autocomplete)
 │   │   ├── UpdateStatsModal.tsx           ← Modal: update stats for existing video
 │   │   ├── VideoCard.tsx                  ← Individual video card with stats
 │   │   ├── VideoGrid.tsx                  ← Responsive grid of VideoCards
