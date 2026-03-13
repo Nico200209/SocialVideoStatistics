@@ -6,7 +6,7 @@ import { useSession, signOut } from 'next-auth/react'
 
 const navItems = [
   {
-    href: '/',
+    href: '/dashboard',
     label: 'Dashboard',
     icon: DashboardIcon,
     activeColor: '#06b6d4',

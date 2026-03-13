@@ -26,7 +26,7 @@ export default function LoginPage() {
       setError('Incorrect username or password.')
       setLoading(false)
     } else {
-      router.push('/')
+      router.push('/dashboard')
       router.refresh()
     }
   }
